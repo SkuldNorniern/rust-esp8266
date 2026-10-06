@@ -21,6 +21,8 @@ custom_rust_profile = release     ; optional
 
 The script builds the crate with `cargo +esp` (`-Zbuild-std=core`), using PlatformIO's xtensa toolchain as linker, and links it into the firmware. The Arduino linker script sends code of unknown objects to IRAM, which then overflows, so the objects are renamed to `*.c.o` to land in flash; `--gc-sections` still drops what is unused.
 
+At `opt-level = 0` the esp8266 backend fails to build `core` ("Cannot scavenge register without an emergency spill slot"), so a crate's dev profile needs `opt-level = 1` or more.
+
 `examples/hello` calls Rust from a sketch and back, with 64-bit and stack arguments.
 
 ```

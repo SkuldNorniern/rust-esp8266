@@ -13,5 +13,7 @@ lto = true
 codegen-units = 1
 panic = "abort"
 
+# unoptimized code runs llvm out of registers on this chip
 [profile.dev]
+opt-level = 1
 panic = "abort"
