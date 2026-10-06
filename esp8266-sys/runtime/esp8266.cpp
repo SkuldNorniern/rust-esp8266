@@ -124,7 +124,9 @@ void esp8266_wifi_begin(const char *hostname, uint8_t sleep) {
     WiFi.hostname(hostname);
     // n is the fastest the chip has: the least air time per packet
     WiFi.setPhyMode(WIFI_PHY_MODE_11N);
-    WiFi.setOutputPower(20.5f);
+    // SlimeVR's 17.5 dBm: full 20.5 draws more than a battery's regulator
+    // holds, and the link breaks off USB power
+    WiFi.setOutputPower(17.5f);
     WiFi.setAutoReconnect(true);
     WiFi.setSleepMode(sleep == 2 ? WIFI_LIGHT_SLEEP : sleep == 1 ? WIFI_MODEM_SLEEP : WIFI_NONE_SLEEP);
     WiFi.setAutoConnect(true);
