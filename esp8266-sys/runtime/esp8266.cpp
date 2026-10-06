@@ -59,6 +59,28 @@ void esp8266_delay(uint32_t ms) { delay(ms); }
 void esp8266_yield(void) { yield(); }
 void esp8266_restart(void) { ESP.restart(); }
 
+// why the chip last started: reason, exception cause, pc, address, depc.
+void esp8266_reset_info(uint32_t *out) {
+    const rst_info *r = ESP.getResetInfoPtr();
+    out[0] = r->reason;
+    out[1] = r->exccause;
+    out[2] = r->epc1;
+    out[3] = r->excvaddr;
+    out[4] = r->depc;
+}
+
+// rtc memory, kept over a restart but not a power loss. the first
+// RTC_OWN blocks are the runtime's (the fast join), the rest the app's.
+const uint32_t RTC_OWN = 8;
+
+void esp8266_rtc_read(uint32_t block, uint32_t *out, size_t words) {
+    ESP.rtcUserMemoryRead(RTC_OWN + block, out, words * 4);
+}
+
+void esp8266_rtc_write(uint32_t block, const uint32_t *data, size_t words) {
+    ESP.rtcUserMemoryWrite(RTC_OWN + block, (uint32_t *)data, words * 4);
+}
+
 // serial
 
 void esp8266_serial_begin(uint32_t baud) { Serial.begin(baud); }

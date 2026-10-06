@@ -14,6 +14,7 @@ use esp8266_sys as sys;
 pub mod flash;
 pub mod i2c;
 pub mod pin;
+pub mod rtc;
 pub mod serial;
 pub mod time;
 pub mod udp;
