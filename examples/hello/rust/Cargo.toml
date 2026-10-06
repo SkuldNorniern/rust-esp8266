@@ -7,6 +7,9 @@ publish = false
 [lib]
 crate-type = ["staticlib"]
 
+[dependencies]
+esp8266 = { path = "../../../esp8266" }
+
 [profile.release]
 opt-level = "s"
 lto = true

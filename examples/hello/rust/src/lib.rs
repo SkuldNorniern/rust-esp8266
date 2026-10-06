@@ -1,32 +1,52 @@
-//! rust called from an Arduino sketch, and calling back into it.
+//! says hello on serial and blinks the led, all from Rust.
 
 #![no_std]
 
-unsafe extern "C" {
-    /// the sketch prints these bytes.
-    fn hello_write(data: *const u8, len: usize);
+use core::fmt::Write;
+
+use esp8266::serial::{self, Serial};
+use esp8266::{App, pin, time, wifi};
+
+const LED: u8 = 2;
+
+struct Hello {
+    on: bool,
+    last_ms: u32,
 }
 
-fn write(s: &str) {
-    // SAFETY: the pointer and length come from one live `&str`.
-    unsafe { hello_write(s.as_ptr(), s.len()) };
+impl App for Hello {
+    fn setup() -> Self {
+        serial::begin(115_200);
+        pin::mode(LED, pin::Mode::Output);
+        let mac = wifi::mac();
+        let _ = writeln!(
+            Serial,
+            "hello from rust, mac {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}, {} µs up",
+            mac[0],
+            mac[1],
+            mac[2],
+            mac[3],
+            mac[4],
+            mac[5],
+            time::micros()
+        );
+        Self {
+            on: false,
+            last_ms: 0,
+        }
+    }
+
+    fn tick(&mut self) {
+        let now = time::millis();
+        if now.wrapping_sub(self.last_ms) >= 500 {
+            self.last_ms = now;
+            self.on = !self.on;
+            pin::write(LED, !self.on);
+        }
+        while let Some(b) = serial::read() {
+            serial::write(&[b]);
+        }
+    }
 }
 
-/// a sum over u64 and u32 mixed, with more arguments than fit in
-/// registers, so the calling convention is checked end to end.
-#[unsafe(no_mangle)]
-pub extern "C" fn hello_sum(a: u64, b: u32, c: u64, d: u32, e: u64, f: u32) -> u64 {
-    a + u64::from(b) + c + u64::from(d) + e + u64::from(f)
-}
-
-/// says hello through the sketch.
-#[unsafe(no_mangle)]
-pub extern "C" fn hello_greet() {
-    write("hello from rust\n");
-}
-
-#[panic_handler]
-fn panic(_: &core::panic::PanicInfo) -> ! {
-    write("rust panicked\n");
-    loop {}
-}
+esp8266::app!(Hello);
