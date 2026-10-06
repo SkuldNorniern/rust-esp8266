@@ -33,6 +33,12 @@ pub fn begin(hostname: &str, sleep: Sleep) {
     unsafe { sys::esp8266_wifi_begin(name.as_ptr(), sleep as u8) }
 }
 
+/// how the radio sleeps from now on.
+pub fn sleep(sleep: Sleep) {
+    // SAFETY: no pointers.
+    unsafe { sys::esp8266_wifi_sleep(sleep as u8) }
+}
+
 /// joins another network and keeps it.
 pub fn join(ssid: &str, password: &str) {
     let (s, p) = (c_string(ssid), c_string(password));

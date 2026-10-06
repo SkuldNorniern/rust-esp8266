@@ -71,6 +71,11 @@ void esp8266_wifi_begin(const char *hostname, uint8_t sleep) {
     WiFi.begin();
 }
 
+// sleep: 0 none, 1 modem, 2 light, while running.
+void esp8266_wifi_sleep(uint8_t sleep) {
+    WiFi.setSleepMode(sleep == 2 ? WIFI_LIGHT_SLEEP : sleep == 1 ? WIFI_MODEM_SLEEP : WIFI_NONE_SLEEP);
+}
+
 void esp8266_wifi_join(const char *ssid, const char *password) {
     WiFi.persistent(true);
     WiFi.begin(ssid, password);
