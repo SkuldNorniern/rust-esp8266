@@ -1,0 +1,10 @@
+[package]
+name = "cargo-esp8266"
+version = "0.0.1"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+description = "Builds a Rust staticlib for the ESP8266, ready to link into Arduino firmware"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
