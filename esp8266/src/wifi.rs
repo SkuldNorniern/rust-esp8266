@@ -1,5 +1,7 @@
 //! the station. the SDK keeps the last network in its own flash, so a
 //! board that joined once, under any firmware, joins again by itself.
+//! 802.11n at full power, reconnecting by itself; after a restart it goes
+//! straight to the access point and channel it was on, without a scan.
 
 use core::net::Ipv4Addr;
 
@@ -50,6 +52,22 @@ pub fn join(ssid: &str, password: &str) {
 pub fn connected() -> bool {
     // SAFETY: no arguments.
     unsafe { sys::esp8266_wifi_connected() }
+}
+
+/// the SDK's reason the link last went down (201 no network, 202 bad
+/// password, 200 beacon lost, ...), `None` before it ever did.
+#[must_use]
+pub fn last_drop() -> Option<u8> {
+    // SAFETY: no arguments.
+    let r = unsafe { sys::esp8266_wifi_last_reason() };
+    (r != 0).then_some(r)
+}
+
+/// the channel it is on, 0 while not connected.
+#[must_use]
+pub fn channel() -> u8 {
+    // SAFETY: no arguments.
+    unsafe { sys::esp8266_wifi_channel() }
 }
 
 /// signal strength, dBm.

@@ -1,5 +1,5 @@
 //! one udp socket. the runtime has one; binding again moves it to another
-//! port.
+//! port. what it sends is marked as voice, the wifi class that goes first.
 
 use core::net::{Ipv4Addr, SocketAddrV4};
 

@@ -35,6 +35,8 @@ unsafe extern "C" {
     pub fn esp8266_wifi_sleep(sleep: u8);
     pub fn esp8266_wifi_join(ssid: *const u8, password: *const u8);
     pub fn esp8266_wifi_connected() -> bool;
+    pub fn esp8266_wifi_last_reason() -> u8;
+    pub fn esp8266_wifi_channel() -> u8;
     pub fn esp8266_wifi_rssi() -> i8;
     pub fn esp8266_wifi_mac(out: *mut u8);
     pub fn esp8266_wifi_ssid(out: *mut u8, len: usize) -> usize;
