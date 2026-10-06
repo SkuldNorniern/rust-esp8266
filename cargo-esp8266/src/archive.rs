@@ -2,12 +2,46 @@
 //! code of any other object to IRAM, which then overflows. so the objects
 //! of a rust archive go out again named `*.c.o`; `--gc-sections` still
 //! drops what is unused.
+//!
+//! `compiler_builtins` defines the arithmetic helpers the chip's ROM has
+//! too (`__udivsi3` and friends). linked, its flash copies would win over
+//! the ROM's for everyone, the SDK's interrupt code included, which runs
+//! while flash is off and dies on them (illegal instruction at boot). so
+//! those are kept local to the rust objects, and every other caller gets
+//! the ROM's.
 
 use std::fs;
 use std::path::Path;
 use std::process::Command;
 
 const MAGIC: &[u8] = b"!<arch>\n";
+/// the helpers `eagle.rom.addr.v6.ld` gives from ROM.
+const ROM: [&str; 24] = [
+    "__adddf3",
+    "__addsf3",
+    "__divdf3",
+    "__divdi3",
+    "__divsi3",
+    "__extendsfdf2",
+    "__fixdfsi",
+    "__fixunsdfsi",
+    "__fixunssfsi",
+    "__floatsidf",
+    "__floatsisf",
+    "__floatunsidf",
+    "__floatunsisf",
+    "__muldf3",
+    "__muldi3",
+    "__mulsf3",
+    "__subdf3",
+    "__subsf3",
+    "__truncdfsf2",
+    "__udivdi3",
+    "__udivsi3",
+    "__umoddi3",
+    "__umodsi3",
+    "__umulsidi3",
+];
 const HEADER: usize = 60;
 
 /// the objects in a gnu ar archive, symbol tables left out.
@@ -37,8 +71,9 @@ fn objects(data: &[u8]) -> Result<Vec<&[u8]>, String> {
 }
 
 /// writes the objects of `data` to `out` as `rust_<n>.c.o`, indexed by
-/// `ar` so the linker finds their symbols.
-pub fn for_flash(data: &[u8], out: &Path, ar: &Path) -> Result<(), String> {
+/// `ar` so the linker finds their symbols, with the ROM's helpers made
+/// local by `objcopy`.
+pub fn for_flash(data: &[u8], out: &Path, ar: &Path, objcopy: &Path) -> Result<(), String> {
     let objects = objects(data)?;
     let work = out.with_extension("objects");
     let _ = fs::remove_dir_all(&work);
@@ -48,6 +83,17 @@ pub fn for_flash(data: &[u8], out: &Path, ar: &Path) -> Result<(), String> {
         let path = work.join(format!("rust_{i}.c.o"));
         fs::write(&path, object).map_err(|e| format!("{}: {e}", path.display()))?;
         names.push(path);
+    }
+    for path in &names {
+        let status = Command::new(objcopy)
+            .args(ROM.map(|s| format!("--localize-symbol={s}")))
+            .arg(path)
+            .status()
+            .map_err(|e| format!("{}: {e}", objcopy.display()))?;
+        if !status.success() {
+            let _ = fs::remove_dir_all(&work);
+            return Err(format!("objcopy failed on {}", path.display()));
+        }
     }
     let _ = fs::remove_file(out);
     let status = Command::new(ar)

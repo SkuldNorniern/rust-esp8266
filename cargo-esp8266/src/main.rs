@@ -120,7 +120,12 @@ fn build(o: Options) -> Result<(), String> {
         .find(|p| p.extension().is_some_and(|x| x == "a"))
         .ok_or("the crate built no staticlib: set crate-type = [\"staticlib\"]")?;
     let data = fs::read(&built).map_err(|e| format!("{}: {e}", built.display()))?;
-    archive::for_flash(&data, &o.out, &exe(&bin, "xtensa-lx106-elf-ar"))?;
+    archive::for_flash(
+        &data,
+        &o.out,
+        &exe(&bin, "xtensa-lx106-elf-ar"),
+        &exe(&bin, "xtensa-lx106-elf-objcopy"),
+    )?;
     let _ = fs::remove_dir_all(&artifacts);
     println!("cargo-esp8266: {}", o.out.display());
     Ok(())
