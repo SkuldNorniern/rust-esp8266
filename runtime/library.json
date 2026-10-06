@@ -1,0 +1,13 @@
+{
+  "name": "rust-esp8266",
+  "version": "0.0.1",
+  "description": "Rust apps on the Arduino esp8266 core: builds the app crate and links it with this runtime",
+  "license": "Apache-2.0",
+  "frameworks": "arduino",
+  "platforms": "espressif8266",
+  "build": {
+    "srcDir": ".",
+    "extraScript": "../platformio/rust.py",
+    "libArchive": false
+  }
+}
