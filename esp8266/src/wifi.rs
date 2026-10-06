@@ -1,0 +1,88 @@
+//! the station. the SDK keeps the last network in its own flash, so a
+//! board that joined once, under any firmware, joins again by itself.
+
+use core::net::Ipv4Addr;
+
+use crate::sys;
+
+/// how the radio sleeps between beacons.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Sleep {
+    /// always listening: lowest latency, most current.
+    None = 0,
+    /// off between beacons: data waits for the next one.
+    Modem = 1,
+    Light = 2,
+}
+
+/// longest name or password the SDK takes, bytes.
+const MOST: usize = 64;
+
+/// a NUL ended copy of `s`, cut at `MOST`.
+fn c_string(s: &str) -> [u8; MOST + 1] {
+    let mut out = [0; MOST + 1];
+    let n = s.len().min(MOST);
+    out[..n].copy_from_slice(&s.as_bytes()[..n]);
+    out
+}
+
+/// starts the station on the kept network.
+pub fn begin(hostname: &str, sleep: Sleep) {
+    let name = c_string(hostname);
+    // SAFETY: `name` is NUL ended and lives through the call.
+    unsafe { sys::esp8266_wifi_begin(name.as_ptr(), sleep as u8) }
+}
+
+/// joins another network and keeps it.
+pub fn join(ssid: &str, password: &str) {
+    let (s, p) = (c_string(ssid), c_string(password));
+    // SAFETY: both are NUL ended and live through the call.
+    unsafe { sys::esp8266_wifi_join(s.as_ptr(), p.as_ptr()) }
+}
+
+#[must_use]
+pub fn connected() -> bool {
+    // SAFETY: no arguments.
+    unsafe { sys::esp8266_wifi_connected() }
+}
+
+/// signal strength, dBm.
+#[must_use]
+pub fn rssi() -> i8 {
+    // SAFETY: no arguments.
+    unsafe { sys::esp8266_wifi_rssi() }
+}
+
+#[must_use]
+pub fn mac() -> [u8; 6] {
+    let mut out = [0; 6];
+    // SAFETY: `out` holds the 6 bytes written.
+    unsafe { sys::esp8266_wifi_mac(out.as_mut_ptr()) };
+    out
+}
+
+/// the kept network's name, in `buf`.
+pub fn ssid(buf: &mut [u8; 32]) -> &str {
+    // SAFETY: the pointer and length come from `buf`.
+    let n = unsafe { sys::esp8266_wifi_ssid(buf.as_mut_ptr(), buf.len()) };
+    core::str::from_utf8(&buf[..n.min(32)]).unwrap_or("")
+}
+
+/// own address and the network mask, once connected.
+#[must_use]
+pub fn address() -> Option<(Ipv4Addr, Ipv4Addr)> {
+    if !connected() {
+        return None;
+    }
+    let (mut ip, mut mask) = ([0; 4], [0; 4]);
+    // SAFETY: both hold the 4 bytes written.
+    unsafe { sys::esp8266_wifi_address(ip.as_mut_ptr(), mask.as_mut_ptr()) };
+    Some((ip.into(), mask.into()))
+}
+
+/// everyone on this network.
+#[must_use]
+pub fn broadcast() -> Option<Ipv4Addr> {
+    let (ip, mask) = address()?;
+    Some(Ipv4Addr::from_bits(ip.to_bits() | !mask.to_bits()))
+}
