@@ -63,6 +63,14 @@ pub fn last_drop() -> Option<u8> {
     (r != 0).then_some(r)
 }
 
+/// the core's link status: 0 idle, 1 network not found, 3 connected, 4
+/// failed, 6 bad password, 7 down.
+#[must_use]
+pub fn status() -> u8 {
+    // SAFETY: no arguments.
+    unsafe { sys::esp8266_wifi_status() }
+}
+
 /// the channel it is on, 0 while not connected.
 #[must_use]
 pub fn channel() -> u8 {

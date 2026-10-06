@@ -19,33 +19,24 @@ WiFiUDP udp;
 // voice, the highest wifi access class: sent first, waits least.
 const uint8_t VOICE_TOS = 0xC0;
 
-// where the last join ended up, kept in RTC memory: a restart joins that
-// access point on that channel straight away instead of scanning.
-const uint32_t FAST_MAGIC = 0xA17AF00Du;
-struct FastJoin {
-    uint32_t magic;
-    uint8_t bssid[6];
-    uint8_t channel;
-    uint8_t spare;
-};
-
-WiFiEventHandler got_ip;
 WiFiEventHandler lost;
 // why the link last went down, 0 for not yet.
 volatile uint8_t last_reason = 0;
-// a fast join that failed: the next look joins the plain way.
-volatile bool fast_failed = false;
-bool fast_trying = false;
+// when the link was last seen down, 0 while up.
+uint32_t down_since = 0;
+// a join that has not joined by then starts over, ms: the SDK can sit
+// on a join without ever saying it failed.
+const uint32_t JOIN_FOR = 20000;
 
-void remember_join() {
-    FastJoin f = {FAST_MAGIC, {0}, (uint8_t)WiFi.channel(), 0};
-    memcpy(f.bssid, WiFi.BSSID(), 6);
-    ESP.rtcUserMemoryWrite(0, (uint32_t *)&f, sizeof f);
-}
-
-void forget_join() {
-    FastJoin f = {0, {0}, 0, 0};
-    ESP.rtcUserMemoryWrite(0, (uint32_t *)&f, sizeof f);
+// joins the kept network by scanning for it, and keeps it plain: a
+// config held to one access point and channel holds every later join
+// to them.
+void join_plain() {
+    String ssid = WiFi.SSID();
+    String psk = WiFi.psk();
+    if (ssid.length() == 0) return;
+    WiFi.persistent(true);
+    WiFi.begin(ssid.c_str(), psk.c_str());
 }
 }
 
@@ -57,7 +48,13 @@ uint64_t esp8266_micros(void) { return micros64(); }
 uint32_t esp8266_millis(void) { return millis(); }
 void esp8266_delay(uint32_t ms) { delay(ms); }
 void esp8266_yield(void) { yield(); }
-void esp8266_restart(void) { ESP.restart(); }
+// leaves the access point first: one that still holds the old link can
+// keep the next join waiting. the SDK call keeps the saved network.
+void esp8266_restart(void) {
+    wifi_station_disconnect();
+    delay(20);
+    ESP.restart();
+}
 
 // why the chip last started: reason, exception cause, pc, address, depc.
 void esp8266_reset_info(uint32_t *out) {
@@ -70,7 +67,7 @@ void esp8266_reset_info(uint32_t *out) {
 }
 
 // rtc memory, kept over a restart but not a power loss. the first
-// RTC_OWN blocks are the runtime's (the fast join), the rest the app's.
+// RTC_OWN blocks are kept for the runtime, the rest are the app's.
 const uint32_t RTC_OWN = 8;
 
 void esp8266_rtc_read(uint32_t block, uint32_t *out, size_t words) {
@@ -130,28 +127,20 @@ void esp8266_wifi_begin(const char *hostname, uint8_t sleep) {
     WiFi.setOutputPower(20.5f);
     WiFi.setAutoReconnect(true);
     WiFi.setSleepMode(sleep == 2 ? WIFI_LIGHT_SLEEP : sleep == 1 ? WIFI_MODEM_SLEEP : WIFI_NONE_SLEEP);
-    got_ip = WiFi.onStationModeGotIP([](const WiFiEventStationModeGotIP &) {
-        fast_trying = false;
-        remember_join();
-    });
-    lost = WiFi.onStationModeDisconnected([](const WiFiEventStationModeDisconnected &e) {
-        last_reason = (uint8_t)e.reason;
-        if (fast_trying) {
-            fast_trying = false;
-            fast_failed = true;
-        }
-    });
-    // the network the SDK kept from before, straight to its access point
-    // when a restart left where that was
-    FastJoin f;
-    String ssid = WiFi.SSID();
-    if (ESP.rtcUserMemoryRead(0, (uint32_t *)&f, sizeof f) && f.magic == FAST_MAGIC &&
-        ssid.length() > 0 && f.channel > 0 && f.channel <= 14) {
-        fast_trying = true;
-        WiFi.begin(ssid.c_str(), WiFi.psk().c_str(), f.channel, f.bssid);
-    } else {
+    WiFi.setAutoConnect(true);
+    lost = WiFi.onStationModeDisconnected(
+        [](const WiFiEventStationModeDisconnected &e) { last_reason = (uint8_t)e.reason; });
+    // the SDK joins the kept network by itself from boot, faster than any
+    // join started here, and a second join started meanwhile can stall it.
+    // only a kept config held to one access point is written plain again.
+    station_config kept;
+    if (wifi_station_get_config_default(&kept) && kept.bssid_set) {
+        join_plain();
+    } else if (wifi_station_get_connect_status() == STATION_IDLE) {
+        // settings above can leave it idle: join, without a second start
         WiFi.begin();
     }
+    down_since = millis() | 1;
 }
 
 // sleep: 0 none, 1 modem, 2 light, while running.
@@ -160,24 +149,33 @@ void esp8266_wifi_sleep(uint8_t sleep) {
 }
 
 void esp8266_wifi_join(const char *ssid, const char *password) {
-    forget_join();
-    fast_trying = false;
     WiFi.persistent(true);
     WiFi.begin(ssid, password);
+    down_since = millis() | 1;
 }
 
 bool esp8266_wifi_connected(void) {
-    if (fast_failed) {
-        // the access point moved or changed channel: scan for it
-        fast_failed = false;
-        forget_join();
-        WiFi.begin();
+    if (WiFi.status() == WL_CONNECTED) {
+        down_since = 0;
+        return true;
     }
-    return WiFi.status() == WL_CONNECTED;
+    uint32_t now = millis();
+    if (down_since == 0) down_since = now | 1;
+    uint32_t down = now - down_since;
+    // idle is not trying at all; past JOIN_FOR the join stalled or the
+    // access point is gone: start over
+    bool idle = wifi_station_get_connect_status() == STATION_IDLE;
+    if (down > JOIN_FOR || (idle && down > 1000)) {
+        join_plain();
+        down_since = now | 1;
+    }
+    return false;
 }
 
 // why the link last went down (the SDK's reason code), 0 for not yet.
 uint8_t esp8266_wifi_last_reason(void) { return last_reason; }
+// the core's link status: 0 idle, 1 network not found, 3 connected, 4 failed, 6 bad password, 7 down.
+uint8_t esp8266_wifi_status(void) { return (uint8_t)WiFi.status(); }
 uint8_t esp8266_wifi_channel(void) { return (uint8_t)WiFi.channel(); }
 int8_t esp8266_wifi_rssi(void) { return (int8_t)WiFi.RSSI(); }
 void esp8266_wifi_mac(uint8_t *out) { WiFi.macAddress(out); }
