@@ -1,4 +1,9 @@
-//! the C side, `runtime/esp8266.cpp`.
+//! raw bindings to `runtime/esp8266.cpp`, the Arduino esp8266 core as
+//! plain C functions. the `esp8266` crate is the safe side.
+//!
+//! every function runs on the Arduino loop only, never from an interrupt.
+
+#![no_std]
 
 unsafe extern "C" {
     pub fn esp8266_micros() -> u64;

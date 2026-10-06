@@ -1,0 +1,14 @@
+[workspace]
+resolver = "3"
+members = ["esp8266-sys", "esp8266", "cargo-esp8266"]
+# apps build for the chip on their own, through cargo-esp8266
+exclude = ["examples"]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }

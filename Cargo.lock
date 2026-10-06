@@ -5,3 +5,14 @@ version = 4
 [[package]]
 name = "cargo-esp8266"
 version = "0.0.1"
+
+[[package]]
+name = "esp8266"
+version = "0.0.1"
+dependencies = [
+ "esp8266-sys",
+]
+
+[[package]]
+name = "esp8266-sys"
+version = "0.0.1"

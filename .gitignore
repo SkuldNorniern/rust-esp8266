@@ -27,5 +27,5 @@ rustc-ice-*.txt
 .pio/
 
 # cargo-esp8266
-cargo-esp8266/target/
+target/
 .pio-check/

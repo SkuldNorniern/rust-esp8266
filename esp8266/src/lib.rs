@@ -1,5 +1,5 @@
 //! the Arduino esp8266 core from Rust. the radio and the SDK stay in C
-//! (`runtime/esp8266.cpp`); this crate is the safe side of it. an app is a
+//! (`esp8266-sys`); this crate is the safe side of it. an app is a
 //! type with `setup` and `tick`, handed to [`app!`].
 //!
 //! everything runs on the one Arduino loop: nothing here is called from
@@ -9,7 +9,7 @@
 
 use core::cell::RefCell;
 
-mod sys;
+use esp8266_sys as sys;
 
 pub mod flash;
 pub mod i2c;
@@ -74,7 +74,8 @@ macro_rules! app {
     };
 }
 
-#[cfg(feature = "panic-handler")]
+// only on the chip, so host tests keep std's
+#[cfg(target_arch = "xtensa")]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     use core::fmt::Write;

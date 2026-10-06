@@ -1,6 +1,6 @@
 [package]
-name = "cargo-esp8266"
-description = "Builds a Rust staticlib for the esp8266, ready to link into Arduino firmware"
+name = "esp8266-sys"
+description = "Raw bindings to the Arduino esp8266 core through a small C runtime"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

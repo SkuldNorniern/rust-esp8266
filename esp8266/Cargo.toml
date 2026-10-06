@@ -1,15 +1,13 @@
 [package]
 name = "esp8266"
-version = "0.0.1"
-edition = "2024"
-license = "Apache-2.0"
-publish = false
 description = "The Arduino esp8266 core from Rust: time, serial, pins, i2c, wifi, udp and flash"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
 
-[features]
-default = ["panic-handler"]
-# prints the panic on serial and restarts
-panic-handler = []
+[dependencies]
+esp8266-sys = { path = "../esp8266-sys" }
 
-[lints.clippy]
-pedantic = { level = "warn", priority = -1 }
+[lints]
+workspace = true

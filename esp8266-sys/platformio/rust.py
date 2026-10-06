@@ -1,7 +1,7 @@
 # PlatformIO only runs python hooks; the work is cargo-esp8266. the
 # runtime library runs this; a project only needs, in platformio.ini:
 #
-#   lib_deps = symlink://path/to/rust-esp8266/runtime
+#   lib_deps = symlink://path/to/rust-esp8266/esp8266-sys/runtime
 #   custom_rust_crate = rust          ; folder of a staticlib crate
 #   custom_rust_profile = release     ; optional
 
@@ -19,7 +19,7 @@ build = firmware.subst("$BUILD_DIR")
 crate = os.path.join(firmware.subst("$PROJECT_DIR"), firmware.GetProjectOption("custom_rust_crate"))
 subprocess.check_call([
     "cargo", "run", "-q", "--release",
-    "--manifest-path", os.path.join(here, "..", "cargo-esp8266", "Cargo.toml"),
+    "--manifest-path", os.path.join(here, "..", "..", "Cargo.toml"), "-p", "cargo-esp8266",
     "--", "build",
     "--manifest-path", os.path.join(crate, "Cargo.toml"),
     "--profile", firmware.GetProjectOption("custom_rust_profile", "release"),
