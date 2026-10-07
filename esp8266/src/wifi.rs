@@ -71,6 +71,15 @@ pub fn status() -> u8 {
     unsafe { sys::esp8266_wifi_status() }
 }
 
+/// sets the transmit power, dBm, 0 to 20.5 in quarters. a strong link
+/// needs less: less current per packet, less noise for the others.
+pub fn set_power(dbm: f32) {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let quarters = (dbm.clamp(0.0, 20.5) * 4.0) as u8;
+    // SAFETY: no pointers.
+    unsafe { sys::esp8266_wifi_power(quarters) }
+}
+
 /// the channel it is on, 0 while not connected.
 #[must_use]
 pub fn channel() -> u8 {

@@ -145,6 +145,9 @@ void esp8266_wifi_begin(const char *hostname, uint8_t sleep) {
     down_since = millis() | 1;
 }
 
+// transmit power, quarter dBm, 0 to 82, while running.
+void esp8266_wifi_power(uint8_t quarter_dbm) { WiFi.setOutputPower(quarter_dbm / 4.0f); }
+
 // sleep: 0 none, 1 modem, 2 light, while running.
 void esp8266_wifi_sleep(uint8_t sleep) {
     WiFi.setSleepMode(sleep == 2 ? WIFI_LIGHT_SLEEP : sleep == 1 ? WIFI_MODEM_SLEEP : WIFI_NONE_SLEEP);
