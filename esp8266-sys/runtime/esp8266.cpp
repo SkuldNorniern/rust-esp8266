@@ -5,6 +5,8 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 #include <ESP8266WiFi.h>
+#include <Updater.h>
+#include <WiFiClient.h>
 #include <WiFiUdp.h>
 #include <Wire.h>
 
@@ -240,6 +242,51 @@ void esp8266_flash_read(size_t at, uint8_t *out, size_t len) {
 bool esp8266_flash_write(size_t at, const uint8_t *data, size_t len) {
     for (size_t i = 0; i < len; i++) EEPROM.write((int)(at + i), data[i]);
     return EEPROM.commit();
+}
+
+// firmware update
+
+// pulls `size` bytes from `ip`:`port` over tcp into the free flash and
+// checks them against `md5`, 32 hex digits. 0 when the new firmware is in
+// place for the next start; else the Updater's error, 100 when the host
+// never answered, 101 when the transfer stalled. says OK or ERR back.
+int esp8266_update(uint32_t ip, uint16_t port, uint32_t size, const char *md5) {
+    if (!Update.begin(size, U_FLASH)) {
+        int e = Update.getError();
+        return e ? e : 99;
+    }
+    Update.setMD5(md5);
+    WiFiClient client;
+    if (!client.connect(IPAddress(ip), port)) {
+        Update.end(false);
+        return 100;
+    }
+    client.setNoDelay(true);
+    uint32_t heard = millis();
+    while (!Update.isFinished() && !Update.hasError()) {
+        if (client.available()) {
+            if (Update.write(client) > 0) {
+                heard = millis();
+            }
+        } else if (!client.connected() || millis() - heard > 10000) {
+            break;
+        } else {
+            delay(1);
+        }
+    }
+    bool ok = Update.isFinished() && Update.end();
+    if (!ok && Update.isRunning()) {
+        Update.end(false);
+    }
+    client.print(ok ? "OK\n" : "ERR\n");
+    client.flush();
+    delay(20);
+    client.stop();
+    if (ok) {
+        return 0;
+    }
+    int e = Update.getError();
+    return e ? e : 101;
 }
 
 }

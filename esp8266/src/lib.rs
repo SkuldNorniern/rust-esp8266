@@ -18,6 +18,7 @@ pub mod rtc;
 pub mod serial;
 pub mod time;
 pub mod udp;
+pub mod update;
 pub mod wifi;
 
 /// a firmware: made once at boot, then run round after round.
