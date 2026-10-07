@@ -56,6 +56,9 @@ void esp8266_restart(void) {
     ESP.restart();
 }
 
+// bytes of the loop's stack never used yet: its low-water mark.
+uint32_t esp8266_stack_untouched(void) { return ESP.getFreeContStack(); }
+
 // why the chip last started: reason, exception cause, pc, address, depc.
 void esp8266_reset_info(uint32_t *out) {
     const rst_info *r = ESP.getResetInfoPtr();

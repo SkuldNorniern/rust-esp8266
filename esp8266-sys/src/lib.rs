@@ -12,6 +12,7 @@ unsafe extern "C" {
     pub fn esp8266_yield();
     pub fn esp8266_restart();
     pub fn esp8266_reset_info(out: *mut u32);
+    pub fn esp8266_stack_untouched() -> u32;
     pub fn esp8266_rtc_read(block: u32, out: *mut u32, words: usize);
     pub fn esp8266_rtc_write(block: u32, data: *const u32, words: usize);
 

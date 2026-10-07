@@ -28,6 +28,14 @@ pub fn yield_now() {
     unsafe { sys::esp8266_yield() }
 }
 
+/// bytes of the loop's 4 KiB stack never used since start: how close it
+/// came to overflowing.
+#[must_use]
+pub fn stack_untouched() -> u32 {
+    // SAFETY: no arguments.
+    unsafe { sys::esp8266_stack_untouched() }
+}
+
 /// restarts the chip.
 pub fn restart() -> ! {
     // SAFETY: no arguments.
